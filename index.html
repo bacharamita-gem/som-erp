@@ -1,0 +1,467 @@
+<!doctype html>
+<!-- ==========================================================================
+SOM PROJECT ERP · Phase 0 — Portal & Control Panel
+Deploys to: your web hosting file manager (suggested: /erp/som-erp.html)
+BEFORE UPLOADING: paste your two keys in the CONFIG block below (search "PASTE").
+Nexus Law 3: never hand-edit anything else in this file; ask Claude to reissue it.
+=========================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOM PROJECT · ERP</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --navy:#0e2438; --navy2:#16354f; --gold:#f0a63a; --bg:#f4f6f9;
+    --card:#ffffff; --line:#e3e8ef; --txt:#1c2b3a; --mut:#64748b;
+    --ok:#16a34a; --bad:#dc2626;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  body{background:var(--bg);color:var(--txt);min-height:100vh}
+  .hidden{display:none!important}
+
+  /* ---------- login ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 100%);padding:20px}
+  .login-card{background:#fff;border-radius:16px;padding:36px 28px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .logo{font-size:13px;letter-spacing:3px;color:var(--gold);font-weight:700;margin-bottom:6px}
+  .login-card h1{font-size:26px;color:var(--navy);margin-bottom:4px}
+  .login-card p{color:var(--mut);font-size:14px;margin-bottom:26px}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  .gbtn:hover{background:#f8fafc}
+  .tag{margin-top:22px;font-size:11px;color:var(--mut);letter-spacing:1px}
+
+  /* ---------- shell ---------- */
+  header{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
+  header .hlogo{font-weight:800;font-size:16px}
+  header .hlogo span{color:var(--gold)}
+  header .grow{flex:1}
+  .chip{background:var(--navy2);border-radius:999px;padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:8px}
+  .chip b{font-weight:700}
+  .rolechip{font-size:10px;background:var(--gold);color:var(--navy);border-radius:4px;padding:2px 6px;font-weight:800;letter-spacing:.5px}
+  .signout{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}
+  main{max-width:1080px;margin:0 auto;padding:16px}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;padding:14px}
+  .stat .n{font-size:26px;font-weight:800;color:var(--navy)}
+  .stat .l{font-size:12px;color:var(--mut)}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar input{flex:1;min-width:180px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn.gold{background:var(--gold);color:var(--navy)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---------- people list ---------- */
+  .person{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer}
+  .person:hover{border-color:var(--gold)}
+  .person.archived{opacity:.5}
+  .avatar{width:42px;height:42px;border-radius:50%;background:var(--navy2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+  .pinfo{flex:1;min-width:0}
+  .pinfo .nm{font-weight:700;font-size:15px}
+  .pinfo .ds{font-size:12px;color:var(--mut)}
+  .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+  .b{font-size:10px;border-radius:4px;padding:2px 7px;font-weight:800;letter-spacing:.5px}
+  .b.super{background:#fde68a;color:#92400e}.b.admin{background:#dbeafe;color:#1e40af}
+  .b.staff{background:#e2e8f0;color:#334155}.b.arch{background:#fee2e2;color:#991b1b}
+  .b.nolink{background:#f1f5f9;color:#94a3b8}
+
+  /* ---------- grouped directory (role dropdowns) ---------- */
+  .pgroup{margin-bottom:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);box-shadow:0 1px 3px rgba(16,35,60,.05)}
+  .pgroup>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;user-select:none}
+  .pgroup>summary::-webkit-details-marker{display:none}
+  .pgroup>summary .gdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px rgba(255,255,255,.14)}
+  .pgroup>summary .gtext{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+  .pgroup>summary .gname{font-weight:800;font-size:14px;letter-spacing:.3px}
+  .pgroup>summary .gsub{font-size:11px;color:#aebfd2;font-weight:500}
+  .pgroup>summary .gcount{margin-left:auto;background:var(--gold);color:var(--navy);font-weight:800;font-size:12px;border-radius:999px;padding:3px 12px;min-width:30px;text-align:center;flex-shrink:0}
+  .pgroup>summary .chev{font-size:11px;color:var(--gold);transition:transform .2s ease;flex-shrink:0}
+  .pgroup[open]>summary .chev{transform:rotate(90deg)}
+  .pgroup>summary:hover{filter:brightness(1.08)}
+  .pgroup .gbody{padding:12px 12px 2px}
+  .pgroup .gbody .person:last-child{margin-bottom:12px}
+  .pgroup .gempty{padding:14px 16px 18px;color:var(--mut);font-size:13px;text-align:center}
+
+  /* ---------- modal ---------- */
+  #modalWrap{position:fixed;inset:0;background:rgba(10,20,35,.55);display:flex;align-items:flex-end;justify-content:center;z-index:100}
+  @media(min-width:640px){#modalWrap{align-items:center}}
+  .modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:22px}
+  @media(min-width:640px){.modal{border-radius:16px}}
+  .modal h2{font-size:18px;color:var(--navy);margin-bottom:16px}
+  .f{margin-bottom:12px}
+  .f label{display:block;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:5px;letter-spacing:.3px}
+  .f input,.f select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .permgrid{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:6px}
+  .permrow{display:grid;grid-template-columns:1.6fr repeat(4,1fr);align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px}
+  .permrow:last-child{border-bottom:none}
+  .permrow.h{background:#f8fafc;font-weight:800;font-size:11px;color:var(--mut);letter-spacing:.5px}
+  .permrow input{width:18px;height:18px;justify-self:center;accent-color:var(--navy)}
+  .actions{display:flex;gap:10px;margin-top:18px;position:sticky;bottom:0;background:#fff;padding-top:8px}
+  .actions .btn{flex:1}
+  .warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+
+  /* ---------- audit ---------- */
+  .audit{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px}
+  .audit .at{color:var(--mut);font-size:11px}
+  .section-title{font-size:13px;font-weight:800;color:var(--mut);letter-spacing:1px;margin:22px 0 10px}
+
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:12px 20px;font-size:14px;z-index:200;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+  #denied{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN VIEW ======================= -->
+<div id="login">
+  <div class="login-card">
+    <div class="logo">SOM PROJECT</div>
+    <h1>ERP Portal</h1>
+    <p>One portal for the whole company.</p>
+    <button class="gbtn" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2C41.4 34.9 44 29.9 44 24c0-1.3-.1-2.7-.4-3.9z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="tag">snkanduah@gmail.com  only · Learning from You.</div>
+  </div>
+</div>
+
+<!-- ======================= DENIED VIEW ======================= -->
+<div id="denied" class="hidden">
+  <div class="login-card">
+    <div class="logo">SOM PROJECT</div>
+    <h1>Not yet on the roster</h1>
+    <p id="deniedMsg">You're signed in, but you haven't been added to the ERP yet.
+    Ask the EA / DME / MIS to add your email, then reload this page.</p>
+    <button class="gbtn" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<!-- ======================= APP VIEW ======================= -->
+<div id="app" class="hidden">
+  <header>
+    <div class="hlogo">SOM<span>·</span>ERP</div>
+    <a href="./som-home.html" style="color:#cbd5e1;font-size:13px;text-decoration:none;margin-left:8px">Home</a>
+    <a href="./som-tasks.html" style="color:#cbd5e1;font-size:13px;text-decoration:none;margin-left:8px">Tasks</a>
+    <div class="grow"></div>
+    <div class="chip"><b id="meName">—</b><span class="rolechip" id="meRole">—</span></div>
+    <button class="signout" onclick="signOut()">Sign out</button>
+  </header>
+  <main>
+    <div class="stats">
+      <div class="stat"><div class="n" id="stTotal">–</div><div class="l">People</div></div>
+      <div class="stat"><div class="n" id="stLogins">–</div><div class="l">Linked logins</div></div>
+      <div class="stat"><div class="n" id="stAdmins">–</div><div class="l">Admins</div></div>
+      <div class="stat"><div class="n" id="stArch">–</div><div class="l">Archived</div></div>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" placeholder="Search name, designation, department…" oninput="renderPeople()">
+      <button class="btn gold hidden" id="addBtn" onclick="openModal(null)">+ Add Person</button>
+      <button class="btn ghost hidden" id="auditBtn" onclick="toggleAudit()">Recent changes</button>
+    </div>
+
+    <div id="peopleList"></div>
+
+    <div id="auditSection" class="hidden">
+      <div class="section-title">RECENT CHANGES (AUDIT TRAIL)</div>
+      <div id="auditList"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ======================= EDIT MODAL ======================= -->
+<div id="modalWrap" class="hidden" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2 id="modalTitle">Add Person</h2>
+    <div class="warn hidden" id="superWarn">This is the Super Admin account. It cannot be archived or re-tiered.</div>
+    <div class="f"><label>FULL NAME</label><input id="f_name"></div>
+    <div class="f"><label>EMAIL (company)</label><input id="f_email" type="email" placeholder="your-email@gmail.com"></div>
+    <div class="row2">
+      <div class="f"><label>DESIGNATION</label><input id="f_desig"></div>
+      <div class="f"><label>DEPARTMENT</label>
+        <select id="f_dept">
+          <option value="">—</option>
+          <option>Management</option><option>Operations</option><option>Sales</option>
+          <option>Marketing</option><option>Exports</option><option>Purchase</option>
+          <option>Production</option><option>Design & Development</option><option>R&D</option>
+          <option>Accounts</option><option>Admin</option><option>MIS</option>
+          <option>HR</option><option>Audit</option><option>SG Home</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>MOBILE</label><input id="f_mobile" type="tel"></div>
+      <div class="f"><label>TIER</label>
+        <select id="f_role">
+          <option value="STAFF">Staff</option>
+          <option value="ADMIN">Admin (EA / DME / MIS)</option>
+          <option value="SUPER_ADMIN">Super Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="f"><label>WORKS ON A COMPUTER? (gets login + dashboard)</label>
+      <select id="f_computer"><option value="true">Yes — actor (logs in)</option><option value="false">No — subject (recorded only)</option></select>
+    </div>
+
+    <div class="f"><label>MODULE PERMISSIONS &nbsp;·&nbsp; V=view · A=add · E=edit · M=module admin</label>
+      <div class="permgrid" id="permGrid"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn bad hidden" id="archBtn" style="background:var(--bad)" onclick="toggleArchive()">Archive</button>
+      <button class="btn" id="saveBtn" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+/* ============================ CONFIG ============================
+   Get both values from: Supabase Dashboard → Settings → API      */
+const SUPABASE_URL      = "https://thupbbnfjlzxomfpilti.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRodXBiYm5mamx6eG9tZnBpbHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2ODc2NTUsImV4cCI6MjEwODI2MzY1NX0.IpprOPqjBF4svohxllt0WAdJvXGsEm3iJQQUODBzzL0";
+const COMPANY_DOMAIN    = "gmail.com";
+/* The anon key is PUBLIC by design — safe only because Row-Level
+   Security guards every row inside the database. (Nexus Law 5)   */
+
+const MODULES = [
+  ["people","People & HR"], ["tasks","Tasks & Scoring"], ["sales","Sales & CRM"],
+  ["marketing","Marketing"], ["exports","Exports"], ["purchase","Purchase"],
+  ["production","Production"], ["design","Design & Dev"], ["rnd","R&D"],
+  ["accounts","Accounts"], ["admin","Admin"], ["mis","MIS"],
+  ["audit","Audit"], ["docs","Documents & SOPs"]
+];
+const PERM_KEYS = ["v","a","e","m"];
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { db: { schema: "adm" } });
+
+let ME = null;          // my adm.users row
+let PEOPLE = [];        // directory
+let EDITING = null;     // row being edited in modal
+
+/* ---------------- auth flow ---------------- */
+async function signIn(){
+  await sb.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.href.split("#")[0],
+               queryParams: { prompt: "select_account" } }
+  });
+}
+async function signOut(){ await sb.auth.signOut(); location.reload(); }
+
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ show("login"); return; }
+
+
+
+  await sb.rpc("link_me").then(()=>{}).catch(()=>{});
+  const { data, error } = await sb.rpc("whoami");
+  if(error){
+    show("denied");
+    document.getElementById("deniedMsg").textContent =
+      "Setup issue: " + error.message + " — check that 'adm' is in Exposed Schemas.";
+    return;
+  }
+  if(!data || !data.length){ show("denied"); return; }
+
+  ME = data[0];
+  document.getElementById("meName").textContent = ME.full_name.split(" ")[0];
+  document.getElementById("meRole").textContent = ME.role.replace("_"," ");
+  if(isAdmin()) document.getElementById("addBtn").classList.remove("hidden");
+  show("app");
+  await loadPeople();
+  if(isAdmin()) document.getElementById("auditBtn").classList.remove("hidden");
+}
+function isAdmin(){ return ME && (ME.role==="SUPER_ADMIN" || ME.role==="ADMIN"); }
+function isSuper(){ return ME && ME.role==="SUPER_ADMIN"; }
+function show(id){ ["login","denied","app"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id)); }
+
+/* ---------------- directory ---------------- */
+async function loadPeople(){
+  const { data, error } = await sb.from("users").select("*").order("full_name");
+  if(error){ toast("Load error: "+error.message); return; }
+  PEOPLE = data;
+  document.getElementById("stTotal").textContent  = data.filter(p=>p.is_active).length;
+  document.getElementById("stLogins").textContent = data.filter(p=>p.auth_id && p.is_active).length;
+  document.getElementById("stAdmins").textContent = data.filter(p=>p.role!=="STAFF" && p.is_active).length;
+  document.getElementById("stArch").textContent   = data.filter(p=>!p.is_active).length;
+  renderPeople();
+}
+function personCard(p){
+  const d = document.createElement("div");
+  d.className = "person"+(p.is_active?"":" archived");
+  const initials = p.full_name.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  const roleB = p.role==="SUPER_ADMIN" ? '<span class="b super">SUPER ADMIN</span>'
+              : p.role==="ADMIN"       ? '<span class="b admin">ADMIN</span>'
+                                       : '<span class="b staff">STAFF</span>';
+  d.innerHTML = `<div class="avatar">${initials}</div>
+    <div class="pinfo"><div class="nm">${esc(p.full_name)}</div>
+    <div class="ds">${esc(p.designation||"—")} · ${esc(p.department||"—")}${isAdmin() && p.mobile ? " · "+esc(p.mobile) : ""}</div></div>
+    <div class="badges">${roleB}
+      ${p.is_active ? "" : '<span class="b arch">ARCHIVED</span>'}
+      ${p.auth_id ? "" : '<span class="b nolink">NO LOGIN YET</span>'}</div>`;
+  d.onclick = ()=> isAdmin() ? openModal(p) : null;
+  return d;
+}
+
+/* People are grouped into collapsible role sections.
+   Staff vs Shop-Floor split on is_computer_user (office logs in; shop floor is recorded only). */
+const PEOPLE_GROUPS = [
+  { name:"Super Admin", sub:"Full control", dot:"#f0a63a", open:true,
+    match:p => p.role==="SUPER_ADMIN" },
+  { name:"Admin", sub:"EA / DME / MIS", dot:"#3b82f6", open:true,
+    match:p => p.role==="ADMIN" },
+  { name:"Staff", sub:"Office team · logs in", dot:"#64748b", open:false,
+    match:p => p.role==="STAFF" && p.is_computer_user },
+  { name:"Shop Floor Employees & Others", sub:"Recorded only · no login", dot:"#16a34a", open:false,
+    match:p => p.role==="STAFF" && !p.is_computer_user }
+];
+
+function renderPeople(){
+  const q = document.getElementById("search").value.toLowerCase();
+  const searching = q.trim().length > 0;
+  const list = document.getElementById("peopleList"); list.innerHTML = "";
+  const filtered = PEOPLE.filter(p =>
+    (p.full_name+" "+(p.designation||"")+" "+(p.department||"")+" "+(p.email||"")).toLowerCase().includes(q));
+  PEOPLE_GROUPS.forEach(g=>{
+    const members = filtered.filter(g.match);
+    if(searching && members.length===0) return;   // hide empty groups while searching
+    const det = document.createElement("details");
+    det.className = "pgroup";
+    det.open = searching ? members.length>0 : g.open;
+    const sum = document.createElement("summary");
+    sum.innerHTML = `<span class="gdot" style="background:${g.dot}"></span>
+      <span class="gtext"><span class="gname">${g.name}</span><span class="gsub">${g.sub}</span></span>
+      <span class="gcount">${members.length}</span>
+      <span class="chev">▶</span>`;
+    det.appendChild(sum);
+    const body = document.createElement("div"); body.className = "gbody";
+    if(members.length){ members.forEach(p=>body.appendChild(personCard(p))); }
+    else { const e=document.createElement("div"); e.className="gempty"; e.textContent="No one in this group yet."; body.appendChild(e); }
+    det.appendChild(body);
+    list.appendChild(det);
+  });
+}
+
+/* ---------------- modal ---------------- */
+function buildPermGrid(perms){
+  const g = document.getElementById("permGrid");
+  g.innerHTML = `<div class="permrow h"><div>MODULE</div><div style="text-align:center">V</div><div style="text-align:center">A</div><div style="text-align:center">E</div><div style="text-align:center">M</div></div>`;
+  MODULES.forEach(([key,label])=>{
+    const r = document.createElement("div"); r.className="permrow";
+    r.innerHTML = `<div>${label}</div>` + PERM_KEYS.map(k=>
+      `<input type="checkbox" data-mod="${key}" data-perm="${k}" ${perms?.[key]?.[k]?"checked":""}>`).join("");
+    g.appendChild(r);
+  });
+}
+function readPermGrid(){
+  const out = {};
+  document.querySelectorAll("#permGrid input").forEach(cb=>{
+    if(cb.checked){ (out[cb.dataset.mod] ||= {})[cb.dataset.perm] = true; }
+  });
+  return out;
+}
+function openModal(p){
+  EDITING = p;
+  document.getElementById("modalTitle").textContent = p ? "Edit — "+p.full_name : "Add Person";
+  f("f_name").value  = p?.full_name || "";
+  f("f_email").value = p?.email || "";
+  f("f_email").disabled = !!p;
+  f("f_desig").value = p?.designation || "";
+  f("f_dept").value  = p?.department || "";
+  f("f_mobile").value= p?.mobile || "";
+  f("f_role").value  = p?.role || "STAFF";
+  f("f_computer").value = String(p ? p.is_computer_user : true);
+  // tier changes: Super Admin only. Admins see it locked.
+  f("f_role").disabled = !isSuper();
+  const isTargetSuper = p && p.role==="SUPER_ADMIN";
+  document.getElementById("superWarn").classList.toggle("hidden", !isTargetSuper);
+  const ab = document.getElementById("archBtn");
+  ab.classList.toggle("hidden", !p || isTargetSuper);
+  if(p) ab.textContent = p.is_active ? "Archive" : "Restore";
+  buildPermGrid(p?.permissions_json || {});
+  document.getElementById("modalWrap").classList.remove("hidden");
+}
+function closeModal(){ document.getElementById("modalWrap").classList.add("hidden"); EDITING=null; }
+function f(id){ return document.getElementById(id); }
+
+async function saveUser(){
+  const row = {
+    full_name: f("f_name").value.trim(),
+    designation: f("f_desig").value.trim() || null,
+    department: f("f_dept").value || null,
+    mobile: f("f_mobile").value.trim() || null,
+    is_computer_user: f("f_computer").value==="true",
+    permissions_json: readPermGrid()
+  };
+  if(!row.full_name){ toast("Name is required."); return; }
+  if(isSuper()) row.role = f("f_role").value;
+
+  let error;
+  if(EDITING){
+    ({ error } = await sb.from("users").update(row).eq("id", EDITING.id));
+  } else {
+    row.email = f("f_email").value.trim().toLowerCase();
+    if(!row.email.endsWith("@gmail.com")){ toast("Email must be @gmail.com"); return; }
+    if(!isSuper()) row.role = f("f_role").value==="SUPER_ADMIN" ? "STAFF" : f("f_role").value;
+    ({ error } = await sb.from("users").insert(row));
+  }
+  if(error){ toast(error.message); return; }
+  toast("Saved."); closeModal(); loadPeople(); if(isAdmin()) loadAudit();
+}
+
+async function toggleArchive(){
+  if(!EDITING) return;
+  const to = !EDITING.is_active;
+  if(to===false && !confirm(`Archive ${EDITING.full_name}? They lose access immediately. (Nothing is deleted — you can restore anytime.)`)) return;
+  const { error } = await sb.from("users").update({ is_active: to }).eq("id", EDITING.id);
+  if(error){ toast(error.message); return; }
+  toast(to ? "Restored." : "Archived (restorable)."); closeModal(); loadPeople();
+}
+
+/* ---------------- audit (admin only, behind a button) ---------------- */
+let auditLoaded = false;
+async function toggleAudit(){
+  const sec = document.getElementById("auditSection");
+  const btn = document.getElementById("auditBtn");
+  const willShow = sec.classList.contains("hidden");
+  if(willShow && !auditLoaded){ await loadAudit(); auditLoaded = true; }
+  sec.classList.toggle("hidden", !willShow);
+  btn.textContent = willShow ? "Hide recent changes" : "Recent changes";
+}
+async function loadAudit(){
+  const { data, error } = await sb.from("audit_log").select("*").order("at",{ascending:false}).limit(15);
+  if(error || !data) return;
+  const el = document.getElementById("auditList"); el.innerHTML="";
+  data.forEach(a=>{
+    const who = a.actor_auth ? PEOPLE.find(p=>p.auth_id===a.actor_auth) : null;
+    const subj = a.new_data?.full_name || "";
+    const d = document.createElement("div"); d.className="audit";
+    d.innerHTML = `<b>${esc(who?who.full_name:"System")}</b> — ${a.action==="INSERT"?"added":"updated"} <b>${esc(subj)}</b>
+      <div class="at">${new Date(a.at).toLocaleString("en-IN")}</div>`;
+    el.appendChild(d);
+  });
+}
+
+/* ---------------- utils ---------------- */
+function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.add("hidden"), 3500);
+}
+
+sb.auth.onAuthStateChange((ev)=>{ if(ev==="SIGNED_IN"||ev==="INITIAL_SESSION"){} });
+boot();
+</script>
+</body>
+</html>
